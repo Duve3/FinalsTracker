@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Side Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <span class="logo-text">FinalsTracker</span>
+            <span class="status-badge" id="status-badge">disconnected</span>
+        </div>
+        <div class="session-info" id="session-info">
+            Session: --:--:--
+        </div>
+    </header>
+
+    <div class="notification" id="midgame-notification" style="display:none">
+        <span>Game appears to be in progress. Confirm to start tracking?</span>
+        <button class="btn-confirm" id="btn-force-ingame">I'm in a match</button>
+    </div>
+
+    <main>
+        <section class="panel live-match" id="live-panel">
+            <h2 class="panel-title">Live Match</h2>
+            <div class="state-indicator" id="state-indicator">
+                <span class="dot"></span>
+                <span id="state-text">Waiting for game...</span>
+            </div>
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Kills</span>
+                    <span class="stat-value" id="stat-kills">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Deaths</span>
+                    <span class="stat-value" id="stat-deaths">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Assists</span>
+                    <span class="stat-value" id="stat-assists">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Combat</span>
+                    <span class="stat-value" id="stat-combat">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Support</span>
+                    <span class="stat-value" id="stat-support">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Objective</span>
+                    <span class="stat-value" id="stat-objective">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Revives</span>
+                    <span class="stat-value" id="stat-revives">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Team Cash</span>
+                    <span class="stat-value" id="stat-cash">-</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel session-summary" id="session-panel">
+            <h2 class="panel-title">Session Summary</h2>
+            <div class="session-stats" id="session-stats">
+                <p>No matches recorded yet</p>
+            </div>
+        </section>
+
+        <section class="panel match-history" id="history-panel">
+            <h2 class="panel-title">Match History</h2>
+            <div class="table-wrapper">
+                <table id="history-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Result</th>
+                            <th>K</th>
+                            <th>D</th>
+                            <th>A</th>
+                            <th>Combat</th>
+                            <th>Support</th>
+                            <th>Obj</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body">
+                        <tr><td colspan="9">No matches yet</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
