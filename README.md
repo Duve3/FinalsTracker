@@ -15,18 +15,18 @@ A real-time second-monitor side tracker for **THE FINALS** by Embark Studios. Ca
 ┌──────────────────────────────────────────────────────────┐
 │                    Python Backend                        │
 │                                                          │
-│  ┌────────────┐  ┌──────────┐  ┌────────────────────┐    │
-│  │ GameWindow │  │  Screen  │  │   OCR Pipeline     │    │
-│  │ (win32gui) │─▶│ Capture  │─▶│ (OpenCV+Tesseract) │    │
-│  └────────────┘  │  (mss)   │  └─────────┬──────────┘    │
-│                  └──────────┘            │               │
-│                                          ▼               │
-│  ┌────────────┐  ┌──────────┐  ┌────────────────────┐    │
-│  │  Database  │  │ Session  │◀─│  State Machine +   │    │
-│  │  (SQLite)  │  │ Tracker  │  │     Parser         │    │
-│  └────────────┘  └────┬─────┘  └────────────────────┘    │
-│                       │                                  │
-│                       ▼                                  │
+│  ┌────────────┐   ┌──────────┐   ┌────────────────────┐  │
+│  │ GameWindow │   │  Screen  │   │   OCR Pipeline     │  │
+│  │ (win32gui) │ → │ Capture  │ → │ (OpenCV+Tesseract) │  │
+│  └────────────┘   │  (mss)   │   └─────────┬──────────┘  │
+│                   └──────────┘             │             │
+│                                            ▼             │
+│  ┌────────────┐    ┌──────────┐   ┌───────────────────┐  │
+│  │  Database  │  ← │ Session  │ ← │  State Machine    │  │
+│  │  (SQLite)  │    │ Tracker  │   │    +  Parser      │  │
+│  └────────────┘    └────┬─────┘   └───────────────────┘  │
+│                         │                                │
+│                         ▼                                │
 │  ┌──────────────────────────────────────────────────┐    │
 │  │            LiveServer (aiohttp + WebSocket)      │    │
 │  │                http://127.0.0.1:8080             │    │
@@ -180,6 +180,9 @@ To calibrate for your setup:
 2. Or edit `src/ocr/regions.py` directly
 3. Each region is `(left_frac, top_frac, right_frac, bottom_frac)`
 
+A small subset of coordinates use (left_frac, right_frac) because it makes more logical sense (look at `SCOREBOARD_COLUMNS` in `src/ocr/regions.py`)\
+These coordinates are usually extremely obvious as they won't have the normal type annotation
+
 ## Usage
 
 ```bash
@@ -210,16 +213,18 @@ python -m src.main config.json
 ## Debug Tools
 
 > [!NOTE]
-> These debug tools are all quite experimental (they aren't the priority here!) so often users may into unique issues regarding them
+> These debug tools are all quite experimental (they aren't the priority here!) so often users may into many bugs while using them
 
-### Debug Replay Tool
+### Replay Tool
 
-Based on the First Robotics Competition (FRC) tool "AdvantageScope", the replay tool allows to rewatch saved sessions and analyze what might be
+Based on the FIRST Robotics Competition (FRC) tool [AdvantageScope](https://github.com/Mechanical-Advantage/AdvantageScope), the replay tool allows to rewatch saved sessions and analyze what might be
 causing issues.
+
+_"Wow its like AdvantageScope if it was made in five minutes" - anonymous_ 
 
 > [!CAUTION]
 > This tool can cause stuttering, lag, or more during gameplay - use at your own risk!\
-> (it also uses a lot of storage!!!)
+> (it acts as an extremely inefficient recording software and takes up much disk while also using high IO)
 
 **Location:** `debug_replay.py`
 
@@ -247,6 +252,8 @@ To use this feature you must enable it in your config.json
 }
 ```
 
+And you can use the following commands to run the viewer as necessary
+
 ```bash
 # Launch empty viewer
 python debug_replay.py
@@ -267,6 +274,17 @@ session_{time}/
         ├── metadata.json # regions, extracted values, game state, etc.
         └── raw.png       # raw unedited screenshot
 ```
+
+**UI:**
+
+The UI is pretty simple, it works with a bar at the top with the timeline, different colored sections represent different state transitions.
+It loads each frame and allows for playback at the framerate logged in metadata.json (In my experience, file IO is just too slow to ever hit this)
+
+Highlighted regions are labeled to represent the regions that OCR is taking pictures of
+
+The values on the right are the values that were extracted that frame\
+Depending on the current state transition, different values will appear on the right (scoreboard states only check for scoreboard values, etc.)
+
 
 ### Region Calibrator
 
@@ -303,7 +321,7 @@ python region_calibrator.py
 5. **Validate**: Results with implausible values are discarded and retried on next frame
 
 ### Tips for Better OCR Accuracy
-
+(these are, just as everything else in this readme, not tested thoroughly, just what worked in my experience)
 - Play in **borderless windowed** mode (required for screen capture)
 - Use 2560x1440 resolution for best results with default region definitions
 - Ensure the game UI is at default scale (100% UI scaling in Windows)
@@ -318,4 +336,3 @@ This tool uses **screen capture only** - it reads pixels from the screen, the sa
 - Hook any game functions
 
 This is the same approach used by `finals-stats.com` and `thefinals.gg`, and complies with Embark's guidelines for third-party tools.
-
