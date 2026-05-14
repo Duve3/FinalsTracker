@@ -55,9 +55,8 @@ SCOREBOARD_COLUMNS: List[Tuple[str, float, float]] = [
     ("objective_score", 0.635, 0.670)
 ]
 
-for v in SCOREBOARD_COLUMNS:
-    v[1] -= _OFFSET
-    v[2] -= _OFFSET
+for i, v in enumerate(SCOREBOARD_COLUMNS):
+    SCOREBOARD_COLUMNS[i] = (v[0], v[1] - _OFFSET, v[2] - _OFFSET)
 
 # inaccurate
 SUMMARY_REGIONS: RegionMap = {

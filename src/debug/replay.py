@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QGraphicsRectItem,
     QGraphicsTextItem, QSplitter, QSlider, QLabel, QPushButton,
     QScrollArea, QGroupBox, QSizePolicy, QFileDialog, QMessageBox,
-    QComboBox, QStatusBar
+    QComboBox, QStatusBar, QLineEdit
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QColor, QPen, QBrush, QFont, QPainter
@@ -100,6 +100,20 @@ class DataPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
 
+        search_layout = QHBoxLayout()
+        search_label = QLabel("Search:")
+        search_label.setStyleSheet("color: #888888;")
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Filter keys...")
+        self.search_input.setStyleSheet("background-color: #333333; color: #ffffff; border: 1px solid #555555; padding: 3px;")
+        self.search_input.textChanged.connect(self._on_search_changed)
+        search_layout.addWidget(search_label)
+        search_layout.addWidget(self.search_input)
+        layout.addLayout(search_layout)
+
+        self._current_data = None
+        self._current_frame = None
+
         self.group_boxes = {}
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -120,28 +134,57 @@ class DataPanel(QWidget):
         scroll.setWidget(container)
         layout.addWidget(scroll)
 
+    def _on_search_changed(self, text):
+        if self._current_frame:
+            self._display_data(self._current_frame, text.lower() if text else "")
+
     def update_data(self, frame: LoadedFrame):
+        self._current_frame = frame
+        search_text = self.search_input.text().lower() if self.search_input.text() else ""
+        self._display_data(frame, search_text)
+
+    def _display_data(self, frame: LoadedFrame, search_text: str):
         for gb in self.group_boxes.values():
             while gb.count():
                 w = gb.takeAt(0).widget()
                 if w:
                     w.deleteLater()
 
-        self._add_row("Frame ID", frame.frame_id, "Frame Info")
-        self._add_row("Timestamp", f"{frame.timestamp:.3f}", "Frame Info")
-        self._add_row("Game State", frame.game_state, "Frame Info")
+        self._add_row_filtered("Frame ID", frame.frame_id, "Frame Info", search_text)
+        self._add_row_filtered("Timestamp", f"{frame.timestamp:.3f}", "Frame Info", search_text)
+        self._add_row_filtered("Game State", frame.game_state, "Frame Info", search_text)
 
         for key, value in frame.extracted_values.items():
             if isinstance(value, dict):
                 for sub_key, sub_val in value.items():
-                    self._add_row(f"{key}.{sub_key}", str(sub_val), "Extracted Values")
+                    full_key = f"{key}.{sub_key}"
+                    self._add_row_filtered(full_key, str(sub_val), "Extracted Values", search_text)
             elif isinstance(value, list):
                 for i, item in enumerate(value):
                     if isinstance(item, dict):
                         for sub_key, sub_val in item.items():
-                            self._add_row(f"{key}[{i}].{sub_key}", str(sub_val), "Extracted Values")
+                            full_key = f"{key}[{i}].{sub_key}"
+                            self._add_row_filtered(full_key, str(sub_val), "Extracted Values", search_text)
             else:
-                self._add_row(key, str(value), "Extracted Values")
+                self._add_row_filtered(key, str(value), "Extracted Values", search_text)
+
+    def _add_row_filtered(self, key: str, value: str, group: str, search_text: str):
+        if search_text and search_text not in key.lower():
+            return
+        if group in self.group_boxes:
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            key_label = QLabel(key)
+            key_label.setStyleSheet("color: #00ff00; font-weight: bold;")
+            key_label.setFixedWidth(150)
+            key_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            val_label = QLabel(str(value))
+            val_label.setStyleSheet("color: #ffffff;")
+            val_label.setWordWrap(True)
+            row_layout.addWidget(key_label)
+            row_layout.addWidget(val_label, 1)
+            self.group_boxes[group].addWidget(row)
 
     def _add_row(self, key: str, value: str, group: str):
         if group in self.group_boxes:
@@ -175,11 +218,14 @@ class StateTimeline(QWidget):
         super().__init__()
         self.setMinimumHeight(24)
         self._states = []
+        self._timestamps = []
         self._current_frame = 0
         self._total_frames = 0
+        self._group_size = 5
 
-    def set_data(self, states: list, current_frame: int, total_frames: int):
+    def set_data(self, states: list, timestamps: list, current_frame: int, total_frames: int):
         self._states = states
+        self._timestamps = timestamps
         self._current_frame = current_frame
         self._total_frames = total_frames
         self.update()
@@ -193,16 +239,39 @@ class StateTimeline(QWidget):
 
         w = self.width()
         h = self.height()
-        frame_width = w / self._total_frames
 
-        for i, state in enumerate(self._states):
-            color = STATE_COLORS.get(state.lower(), STATE_COLORS["unknown"])
-            x = i * frame_width
-            painter.fillRect(int(x), 0, max(1, int(frame_width)), h, color)
+        if len(self._timestamps) < 2:
+            frame_width = w / self._total_frames
+            for i, state in enumerate(self._states):
+                color = STATE_COLORS.get(state.lower(), STATE_COLORS["unknown"])
+                x = i * frame_width
+                painter.fillRect(int(x), 0, max(1, int(frame_width)), h, color)
+        else:
+            total_duration = self._timestamps[-1] - self._timestamps[0]
+            if total_duration <= 0:
+                total_duration = 1
 
-        if self._total_frames > 0:
-            indicator_x = self._current_frame * frame_width
-            painter.fillRect(int(indicator_x) - 1, 0, 3, h, QColor(255, 255, 255))
+            for i in range(0, len(self._states), self._group_size):
+                group_end = min(i + self._group_size, len(self._states))
+                state = self._states[i]
+
+                if group_end < len(self._timestamps):
+                    group_duration = self._timestamps[group_end] - self._timestamps[i]
+                else:
+                    group_duration = 0.1
+
+                bar_width = (group_duration / total_duration) * w
+                bar_width = max(2, int(bar_width))
+
+                color = STATE_COLORS.get(state.lower(), STATE_COLORS["unknown"])
+                x_start = int((self._timestamps[i] - self._timestamps[0]) / total_duration * w)
+                painter.fillRect(x_start, 0, bar_width, h, color)
+
+        if self._total_frames > 0 and len(self._timestamps) > 0:
+            total_duration = self._timestamps[-1] - self._timestamps[0]
+            if total_duration > 0:
+                indicator_pos = (self._timestamps[self._current_frame] - self._timestamps[0]) / total_duration * w
+                painter.fillRect(int(indicator_pos) - 1, 0, 3, h, QColor(255, 255, 255))
 
 
 class TimelineControl(QWidget):
@@ -307,19 +376,24 @@ class TimelineControl(QWidget):
         else:
             self.play()
 
-    def set_total_frames(self, total: int, states: list = None):
+    def set_total_frames(self, total: int, states: list = None, timestamps: list = None):
         self.slider.setMaximum(max(0, total - 1))
         self.frame_label.setText(f"Frame: 0 / {total}")
-        if states:
-            self.state_timeline.set_data(states, 0, total)
+        if states and timestamps:
+            self.state_timeline.set_data(states, timestamps, 0, total)
 
-    def set_current_frame(self, frame: int, state: str = None):
+    def set_current_frame(self, frame: int, state: str = None, timestamp: float = None):
         self.slider.setValue(frame)
         self.frame_label.setText(f"Frame: {frame} / {self.slider.maximum() + 1}")
         if state:
             self.state_label.setText(f"State: {state}")
-        if self.state_timeline._total_frames > 0:
-            self.state_timeline.set_data(self.state_timeline._states, frame, self.state_timeline._total_frames)
+        if self.state_timeline._total_frames > 0 and self.state_timeline._timestamps:
+            self.state_timeline.set_data(
+                self.state_timeline._states,
+                self.state_timeline._timestamps,
+                frame,
+                self.state_timeline._total_frames
+            )
 
     def set_fps(self, fps: int):
         self.current_fps = fps
@@ -476,7 +550,8 @@ class DebugReplayWindow(QMainWindow):
 
         self._last_loaded_session = session_path
         states = [f.game_state for f in self.frames]
-        self.timeline.set_total_frames(len(self.frames), states)
+        timestamps = [f.timestamp for f in self.frames]
+        self.timeline.set_total_frames(len(self.frames), states, timestamps)
         self.status_bar.showMessage(f"Loaded {len(self.frames)} frames from {session_path_obj.name}")
 
         if self.frames:
@@ -486,7 +561,7 @@ class DebugReplayWindow(QMainWindow):
         if 0 <= index < len(self.frames):
             self.current_frame_index = index
             frame = self.frames[index]
-            self.timeline.set_current_frame(index, frame.game_state)
+            self.timeline.set_current_frame(index, frame.game_state, frame.timestamp)
 
             if os.path.exists(frame.raw_image_path):
                 pixmap = QPixmap(frame.raw_image_path)

@@ -197,7 +197,7 @@ python -m src.main config.json
 1. The tracker will auto-detect THE FINALS window
 2. Open a browser on your second monitor to `http://127.0.0.1:8080`
 3. The dashboard updates in real-time as you play
-4. Press Ctrl+C in terminal to stop
+4. Press Ctrl+C in terminal to stop (and you will have to close the dashboard as well, or wait for timeout to occur)
 
 ### What Gets Tracked
 
