@@ -1,7 +1,7 @@
 # FinalsTracker
 
 > [!NOTE]
-> This project was made with assistance an AI via [Opencode](https://opencode.ai/)
+> This project was made with the assistance of AI via [Opencode](https://opencode.ai/)
 
 A real-time second-monitor side tracker for **THE FINALS** by Embark Studios. Captures on-screen game data via OCR and displays live stats, session summaries, and match history on a dashboard accessible from any browser on your second monitor.
 
